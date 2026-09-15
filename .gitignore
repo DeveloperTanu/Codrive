@@ -1,0 +1,20 @@
+# Secrets and local configuration
+**/.env
+.env.production
+
+# Dependencies and generated output
+**/node_modules/
+**/dist/
+
+# Tooling and OS files
+.DS_Store
+Thumbs.db
+*.log
+
+.env
+
+.env.example
+
+.env.production
+
+node_modules/

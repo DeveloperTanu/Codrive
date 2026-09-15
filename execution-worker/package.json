@@ -1,0 +1,24 @@
+{
+  "name": "codrive-execution-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Codrive execution worker — consumes execution jobs and runs them in locked-down Docker containers. Runs as its own deployable, separate from the main API, so it can fail/restart/scale independently.",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "dockerode": "^4.0.2",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^3.3.29",
+    "@types/node": "^20.12.12",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.5"
+  }
+}

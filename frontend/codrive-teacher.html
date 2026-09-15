@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codrive — Teacher AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F7F8; --surface: #FFFFFF; --surface-elevated: #FCFCFD; --surface-hover: #F0F0F1;
+    --border: #E4E4E7; --border-strong: #D4D4D8;
+    --text-primary: #18181B; --text-secondary: #52525B; --text-muted: #A1A1AA;
+    --accent: #2F8F6E; --accent-hover: #267A5D; --accent-tint: rgba(47, 143, 110, 0.09);
+    --danger: #C0433C; --danger-tint: rgba(192, 67, 60, 0.09);
+    --warning: #B5790C; --warning-tint: rgba(181, 121, 12, 0.1);
+    --success: #2F8F6E;
+    --shadow-md: 0 8px 28px rgba(24, 24, 27, 0.14);
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  html[data-theme="dark"] {
+    --bg: #121214; --surface: #1B1B1E; --surface-elevated: #19191C; --surface-hover: #26262A;
+    --border: #2C2C30; --border-strong: #38383D;
+    --text-primary: #F2F2F3; --text-secondary: #A6A6AC; --text-muted: #6B6B70;
+    --accent: #3DB98A; --accent-hover: #4FCB9C; --accent-tint: rgba(61, 185, 138, 0.13);
+    --danger: #DB6B64; --danger-tint: rgba(219, 107, 100, 0.12);
+    --warning: #D8A23F; --warning-tint: rgba(216, 162, 63, 0.13);
+    --success: #3DB98A;
+    --shadow-md: 0 10px 34px rgba(0, 0, 0, 0.5);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-font-smoothing: antialiased; }
+  body { background: var(--bg); color: var(--text-primary); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; height: 100vh; overflow: hidden; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; border: none; background: none; cursor: pointer; color: inherit; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  input, select { font-family: inherit; }
+
+  .shell { display: flex; flex-direction: column; height: 100vh; }
+
+  .topbar { height: 48px; flex-shrink: 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 18px; background: var(--surface-elevated); }
+  .crumbs { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-muted); font-family: var(--font-mono); }
+  .crumbs .cur { color: var(--text-primary); font-weight: 600; }
+  .crumbs svg { width: 11px; height: 11px; }
+  .mode-toggle { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 2px; }
+  .mode-toggle button { font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 5px; color: var(--text-muted); }
+  .mode-toggle button.active { background: var(--accent-tint); color: var(--accent); }
+  .icon-btn { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--text-secondary); }
+  .icon-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+  .icon-btn svg { width: 16px; height: 16px; }
+
+  .view { flex: 1; overflow-y: auto; }
+  .view.hidden { display: none; }
+
+  /* ===== problem view (host page context for the widget) ===== */
+  .prob-wrap { max-width: 620px; margin: 0 auto; padding: 40px 24px 80px; }
+  .diff-tag { display: inline-block; font-size: 11px; font-weight: 600; font-family: var(--font-mono); color: var(--warning); background: var(--warning-tint); padding: 2px 7px; border-radius: 5px; margin-bottom: 12px; }
+  .prob-wrap h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 12px; }
+  .prob-wrap p { color: var(--text-secondary); font-size: 14.5px; line-height: 1.7; margin-bottom: 14px; }
+  .code-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-family: var(--font-mono); font-size: 13px; line-height: 1.75; padding: 12px 14px; color: var(--text-secondary); margin-bottom: 14px; }
+  .code-panel .err-ln { background: var(--danger-tint); display: block; margin: 0 -14px; padding: 0 14px; }
+  .code-panel .tok-kw { color: var(--accent); }
+  .term-box { background: var(--text-primary); color: var(--bg); border-radius: 7px; padding: 10px 12px; font-family: var(--font-mono); font-size: 12px; }
+  html[data-theme="dark"] .term-box { background: #0C0C0D; }
+  .term-box .err { color: #EF8C86; }
+
+  /* ===== settings view ===== */
+  .settings-wrap { max-width: 560px; margin: 0 auto; padding: 40px 24px 80px; }
+  .settings-wrap h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; }
+  .settings-wrap > p.lead { color: var(--text-secondary); font-size: 13.5px; margin-bottom: 28px; }
+  .set-section { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 20px; margin-bottom: 16px; }
+  .set-section h2 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .set-section .desc { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.6; }
+  .field-label { font-size: 12.5px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; display: block; }
+  .key-row { display: flex; gap: 8px; }
+  .key-row input { flex: 1; height: 36px; border: 1px solid var(--border-strong); border-radius: 7px; padding: 0 12px; background: var(--bg); color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 7px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .btn-primary { background: var(--text-primary); color: var(--bg); }
+  .btn-primary:hover { background: var(--text-secondary); }
+  .btn-outline { border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-primary); }
+  .btn-outline:hover { background: var(--surface-hover); }
+  .btn-danger-text { color: var(--danger); font-size: 12.5px; font-weight: 500; }
+  .btn-danger-text:hover { text-decoration: underline; }
+
+  .key-saved-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); }
+  .key-saved-row .masked { font-family: var(--font-mono); font-size: 13px; letter-spacing: 2px; color: var(--text-secondary); }
+  .key-status { display: flex; align-items: center; gap: 5px; font-size: 11.5px; margin-top: 10px; }
+  .key-status.ok { color: var(--success); }
+  .key-status.fail { color: var(--danger); }
+  .key-status svg { width: 12px; height: 12px; }
+
+  .model-select { width: 100%; height: 36px; border: 1px solid var(--border-strong); border-radius: 7px; padding: 0 10px; background: var(--bg); color: var(--text-primary); font-size: 13px; margin-top: 6px; }
+
+  .privacy-note { display: flex; gap: 9px; font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-top: 4px; }
+  .privacy-note svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ===== floating Teacher button + panel ===== */
+  .teacher-fab {
+    position: fixed; bottom: 22px; right: 22px; width: 46px; height: 46px; border-radius: 50%;
+    background: var(--text-primary); color: var(--bg); display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-md); z-index: 100; transition: transform 0.15s ease;
+  }
+  .teacher-fab:hover { transform: scale(1.06); }
+  .teacher-fab svg { width: 21px; height: 21px; }
+  .teacher-fab .dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+
+  .teacher-panel {
+    position: fixed; bottom: 22px; right: 22px; width: 340px; height: 480px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-md);
+    display: flex; flex-direction: column; z-index: 100; overflow: hidden;
+    opacity: 0; transform: translateY(8px) scale(0.98); pointer-events: none; transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  .teacher-panel.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+
+  .t-head { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface-elevated); flex-shrink: 0; }
+  .t-head .t-title { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; }
+  .t-head .t-icon { width: 22px; height: 22px; border-radius: 6px; background: var(--text-primary); display: flex; align-items: center; justify-content: center; }
+  .t-head .t-icon svg { width: 12px; height: 12px; stroke: var(--bg); }
+  .t-context { padding: 8px 14px; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); background: var(--surface-elevated); flex-shrink: 0; }
+
+  .t-body { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .t-msg { max-width: 88%; font-size: 13px; line-height: 1.55; padding: 8px 11px; border-radius: 9px; animation: fadein 0.2s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+  .t-msg.teacher { background: var(--surface-hover); align-self: flex-start; border-bottom-left-radius: 3px; }
+  .t-msg.user { background: var(--accent); color: #fff; align-self: flex-end; border-bottom-right-radius: 3px; }
+  .t-msg code { font-family: var(--font-mono); font-size: 12px; background: rgba(0,0,0,0.08); padding: 1px 4px; border-radius: 3px; }
+
+  .t-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px; flex-shrink: 0; }
+  .t-chip { font-size: 11.5px; font-weight: 500; padding: 5px 9px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--text-secondary); background: var(--surface); }
+  .t-chip:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+  .t-input-row { border-top: 1px solid var(--border); display: flex; align-items: center; gap: 6px; padding: 8px 10px; flex-shrink: 0; }
+  #t-input { flex: 1; border: none; outline: none; background: transparent; font-size: 13px; color: var(--text-primary); font-family: var(--font-sans); }
+  .t-send { width: 28px; height: 28px; border-radius: 7px; background: var(--text-primary); color: var(--bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .t-send:hover { background: var(--text-secondary); }
+  .t-send svg { width: 14px; height: 14px; }
+  .t-send:disabled { background: var(--border-strong); }
+
+  @media (max-width: 460px) {
+    .teacher-panel { width: calc(100vw - 24px); right: 12px; height: 60vh; bottom: 12px; }
+    .teacher-fab { right: 16px; bottom: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="crumbs">
+      <span>JavaScript / Promises</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+      <span class="cur" id="crumb-cur">Practice</span>
+    </div>
+    <div class="mode-toggle">
+      <button id="tab-problem" class="active">Problem</button>
+      <button id="tab-settings">AI Teacher Settings</button>
+    </div>
+    <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme">
+      <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </div>
+
+  <!-- PROBLEM VIEW (host context) -->
+  <div class="view" id="problem-view">
+    <div class="prob-wrap">
+      <span class="diff-tag">Normal</span>
+      <h1>Return the first resolved value</h1>
+      <p>Write a function that takes an array of promises and returns a promise that resolves with the value of whichever one finishes first.</p>
+      <div class="code-panel"><span class="tok-kw">async function</span> firstDone(tasks) {<br>
+<span class="err-ln">&nbsp;&nbsp;return tasks[0];</span><br>
+}</div>
+      <p>Your last run failed with the error below.</p>
+      <div class="term-box">
+        <span class="err">TypeError:</span> tasks[0].then is not a function<br>
+        <span style="opacity:.6">at firstDone (solution.js:2:10)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS VIEW -->
+  <div class="view hidden" id="settings-view">
+    <div class="settings-wrap">
+      <h1>AI Teacher</h1>
+      <p class="lead">Configure the Groq connection that powers your Teacher chat.</p>
+
+      <div class="set-section">
+        <h2>Groq API key</h2>
+        <div class="desc">Your API key is used to make requests to Groq for Teacher AI. Codrive does not provide a shared API key.</div>
+
+        <div id="key-empty-state">
+          <span class="field-label">API key</span>
+          <div class="key-row">
+            <input type="password" id="key-input" placeholder="gsk_••••••••••••••••••••" autocomplete="off">
+            <button class="btn btn-primary" id="save-key-btn">Save</button>
+          </div>
+        </div>
+
+        <div id="key-saved-state" style="display:none;">
+          <span class="field-label">API key</span>
+          <div class="key-saved-row">
+            <span class="masked">•••••••••••••••••••• 3f2a</span>
+            <div style="display:flex; gap:14px; align-items:center;">
+              <button class="btn-danger-text" id="remove-key-btn">Remove</button>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:12px;">
+            <button class="btn btn-outline" id="test-key-btn">Test connection</button>
+          </div>
+          <div class="key-status" id="key-status" style="display:none;"></div>
+
+          <span class="field-label" style="margin-top:16px; display:block;">Model</span>
+          <select class="model-select" id="model-select">
+            <option>Default (recommended)</option>
+            <option>Fast — shorter responses</option>
+            <option>Thorough — more detailed explanations</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="privacy-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        <span>Your key stays on this device and is sent directly to Groq when you use Teacher — never stored in Codrive's database, logs, or error reports. Removing it here deletes it completely.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FLOATING TEACHER -->
+<button class="teacher-fab" id="teacher-fab" aria-label="Open Teacher">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+  <span class="dot"></span>
+</button>
+
+<div class="teacher-panel" id="teacher-panel">
+  <div class="t-head">
+    <div class="t-title">
+      <span class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>
+      Teacher
+    </div>
+    <button class="icon-btn" id="close-teacher" style="width:24px;height:24px;" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="t-context" id="t-context">Viewing: JavaScript → Promises → "Return the first resolved value"</div>
+  <div class="t-body" id="t-body">
+    <div class="t-msg teacher" id="teacher-greeting">What are you working on? I can see the problem you're on — ask me anything, or use one of the buttons below.</div>
+  </div>
+  <div class="t-chips">
+    <button class="t-chip" data-action="explain">Explain this</button>
+    <button class="t-chip" data-action="hint">Give me a hint</button>
+    <button class="t-chip" data-action="debug">Debug this</button>
+    <button class="t-chip" data-action="error">Explain the error</button>
+    <button class="t-chip" data-action="example">Show an example</button>
+  </div>
+  <div class="t-input-row">
+    <input id="t-input" type="text" placeholder="Ask about your code...">
+    <button class="t-send" id="t-send" aria-label="Send">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+    </button>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+  const API_BASE = window.CODRIVE_CONFIG.apiBase;
+  const Api = (() => {
+    let accessToken = null, currentUser = null;
+    async function request(path, options = {}) {
+      const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+      if (accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
+      const res = await fetch(API_BASE + path, { ...options, headers, credentials: 'include' });
+      if (res.status === 204) return null;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+    async function getSession() {
+      if (currentUser) return currentUser;
+      const data = await request('/auth/refresh', { method: 'POST' });
+      accessToken = data.accessToken; currentUser = data.user;
+      return currentUser;
+    }
+    // Real call to the backend's Groq proxy (§6 of the architecture spec).
+    // The key travels in a header on this one request only — never stored
+    // server-side, never in this function's return value.
+    async function teacherChat(groqApiKey, message, context) {
+      const res = await fetch(API_BASE + '/teacher/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + accessToken, 'X-Groq-Api-Key': groqApiKey },
+        credentials: 'include',
+        body: JSON.stringify({ message, context }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Teacher AI request failed.');
+      return data.reply;
+    }
+    return { getSession, teacherChat };
+  })();
+
+  // real signed-in user, if any
+  (async () => {
+    try {
+      const session = await Api.getSession();
+      if (session?.name) {
+        const firstName = session.name.split(' ')[0];
+        document.getElementById('teacher-greeting').textContent = `Hey ${firstName} — what are you working on? I can see the problem you're on, so ask me anything or use one of the buttons below.`;
+      }
+    } catch (e) {}
+  })();
+
+  // theme
+  const root = document.documentElement;
+  const toggle = document.getElementById('theme-toggle');
+  const icon = document.getElementById('theme-icon');
+  const sunPath = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+  const moonPath = '<path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>';
+  function applyTheme(t) { root.setAttribute('data-theme', t); icon.innerHTML = t === 'dark' ? moonPath : sunPath; }
+  {
+    const saved = localStorage.getItem('codrive-theme');
+    applyTheme(saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+  }
+  toggle.addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    localStorage.setItem('codrive-theme', next);
+  });
+
+  // view switch
+  const problemView = document.getElementById('problem-view');
+  const settingsView = document.getElementById('settings-view');
+  const tabProblem = document.getElementById('tab-problem');
+  const tabSettings = document.getElementById('tab-settings');
+  const crumbCur = document.getElementById('crumb-cur');
+  tabProblem.addEventListener('click', () => {
+    problemView.classList.remove('hidden'); settingsView.classList.add('hidden');
+    tabProblem.classList.add('active'); tabSettings.classList.remove('active');
+    crumbCur.textContent = 'Practice';
+  });
+  tabSettings.addEventListener('click', () => {
+    settingsView.classList.remove('hidden'); problemView.classList.add('hidden');
+    tabSettings.classList.add('active'); tabProblem.classList.remove('active');
+    crumbCur.textContent = 'Settings';
+  });
+
+  // ---- Groq key management (in-memory only for this prototype — see note above) ----
+  // In production this would read/write browser localStorage or IndexedDB directly on
+  // the client and never touch the server. Real browser storage APIs are disabled inside
+  // this preview sandbox, so a JS variable stands in for it here.
+  let groqKey = null;
+  const keyEmptyState = document.getElementById('key-empty-state');
+  const keySavedState = document.getElementById('key-saved-state');
+  const keyInput = document.getElementById('key-input');
+  const keyStatus = document.getElementById('key-status');
+
+  document.getElementById('save-key-btn').addEventListener('click', () => {
+    const val = keyInput.value.trim();
+    if (!val) return;
+    groqKey = val; // never sent anywhere in this demo, never logged, never rendered in full
+    keyInput.value = '';
+    keyEmptyState.style.display = 'none';
+    keySavedState.style.display = 'block';
+    keyStatus.style.display = 'none';
+  });
+  document.getElementById('remove-key-btn').addEventListener('click', () => {
+    groqKey = null;
+    keySavedState.style.display = 'none';
+    keyEmptyState.style.display = 'block';
+    keyStatus.style.display = 'none';
+  });
+  document.getElementById('test-key-btn').addEventListener('click', function () {
+    this.textContent = 'Testing…';
+    this.disabled = true;
+    setTimeout(() => {
+      this.textContent = 'Test connection';
+      this.disabled = false;
+      keyStatus.style.display = 'flex';
+      keyStatus.className = 'key-status ok';
+      keyStatus.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg> Connected to Groq';
+    }, 700);
+  });
+
+  // ---- Teacher chat ----
+  const fab = document.getElementById('teacher-fab');
+  const panel = document.getElementById('teacher-panel');
+  const tBody = document.getElementById('t-body');
+  const tInput = document.getElementById('t-input');
+  const tSend = document.getElementById('t-send');
+
+  fab.addEventListener('click', () => panel.classList.add('open'));
+  document.getElementById('close-teacher').addEventListener('click', () => panel.classList.remove('open'));
+
+  function addMsg(text, who) {
+    const div = document.createElement('div');
+    div.className = 't-msg ' + who;
+    div.innerHTML = text;
+    tBody.appendChild(div);
+    tBody.scrollTop = tBody.scrollHeight;
+  }
+
+  let hintStep = 0;
+  const localHints = [
+    "Before I give anything away — what does <code>tasks[0]</code> actually give you here? Is it a value, or still a promise?",
+    "Right, it's still a promise. So calling <code>.then</code> directly on it isn't the bug — returning only <code>tasks[0]</code> and ignoring the rest is. Which built-in method settles as soon as any one promise in an array settles?",
+    "That's <code>Promise.race()</code>. Try <code>return await Promise.race(tasks);</code> — want me to explain why that fixes it?"
+  ];
+
+  const PRACTICE_CONTEXT = {
+    conceptTitle: 'Promises',
+    problemTitle: "Return the first resolved value",
+    currentCode: 'async function firstDone(tasks) {\n  return tasks[0];\n}',
+    language: 'javascript',
+  };
+
+  // If a Groq key is saved, this calls the real backend proxy — an actual
+  // model response, not a canned string. Without a key (or if the call
+  // fails), falls back to the scripted mentor replies below so the panel
+  // still demonstrates the intended behavior offline.
+  async function askRealTeacher(message) {
+    if (!groqKey) return null;
+    try {
+      const session = await Api.getSession();
+      if (!session) return null;
+      return await Api.teacherChat(groqKey, message, PRACTICE_CONTEXT);
+    } catch (e) {
+      return `(Groq request failed: ${e.message})`;
+    }
+  }
+
+  const actionPrompts = {
+    explain: "Explain what this problem is actually asking for, and what's wrong with the current code.",
+    hint: "Give me the next hint — don't give away the full answer yet.",
+    debug: "Help me debug this without telling me the fix outright.",
+    error: "Explain the error I'm seeing: tasks[0].then is not a function",
+    example: "Show me a small, unrelated example that illustrates the relevant concept.",
+  };
+
+  async function teacherReply(action) {
+    const real = await askRealTeacher(actionPrompts[action]);
+    if (real) { addMsg(real, 'teacher'); return; }
+
+    if (action === 'explain') {
+      addMsg("This problem wants the first promise to <em>settle</em> — success or failure — not the first one in the array. Your current code just grabs index 0 without waiting for anything to resolve, so it returns a pending promise object instead of a value.", 'teacher');
+    } else if (action === 'hint') {
+      const text = localHints[Math.min(hintStep, localHints.length - 1)];
+      addMsg(text, 'teacher');
+      if (hintStep < localHints.length - 1) hintStep++;
+    } else if (action === 'debug') {
+      addMsg("Let's trace it: what type is <code>tasks[0]</code> before your function returns it — a resolved value, or a Promise object? Log it and check.", 'teacher');
+    } else if (action === 'error') {
+      addMsg("<code>tasks[0].then is not a function</code> means something in your <code>tasks</code> array isn't a promise at all — probably because <code>tasks[0]</code> already got unwrapped somewhere earlier, or one entry is a plain value instead of a promise. Where does <code>tasks</code> get built?", 'teacher');
+    } else if (action === 'example') {
+      addMsg("Small parallel case: <code>Promise.race([slow(300), fast(10)])</code> resolves in ~10ms with fast's value, even though slow was called first — race only cares about who finishes first, not who started first.", 'teacher');
+    }
+  }
+
+  document.querySelectorAll('.t-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      addMsg(chip.textContent, 'user');
+      setTimeout(() => teacherReply(chip.dataset.action), 350);
+    });
+  });
+
+  async function sendUserText() {
+    const val = tInput.value.trim();
+    if (!val) return;
+    addMsg(val, 'user');
+    tInput.value = '';
+
+    const real = await askRealTeacher(val);
+    if (real) { addMsg(real, 'teacher'); return; }
+
+    setTimeout(() => {
+      const lower = val.toLowerCase();
+      if (lower.includes('answer') || lower.includes('solution') || lower.includes('just tell me')) {
+        addMsg("Fair enough — here it is: <code>return await Promise.race(tasks);</code>. It works because <code>Promise.race</code> settles the instant the first input settles, ignoring the rest. Want me to walk through why the array-index approach couldn't work?", 'teacher');
+      } else {
+        addMsg("Good question — before I answer, what have you tried so far, or what do you think is happening?", 'teacher');
+      }
+    }, 400);
+  }
+  tSend.addEventListener('click', sendUserText);
+  tInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendUserText(); });
+</script>
+
+</body>
+</html>

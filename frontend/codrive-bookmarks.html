@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codrive — Bookmarks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F7F8; --surface: #FFFFFF; --surface-elevated: #FCFCFD; --surface-hover: #F0F0F1;
+    --border: #E4E4E7; --border-strong: #D4D4D8;
+    --text-primary: #18181B; --text-secondary: #52525B; --text-muted: #A1A1AA;
+    --accent: #2F8F6E; --accent-hover: #267A5D; --accent-tint: rgba(47, 143, 110, 0.09);
+    --danger: #C0433C;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  html[data-theme="dark"] {
+    --bg: #121214; --surface: #1B1B1E; --surface-elevated: #19191C; --surface-hover: #26262A;
+    --border: #2C2C30; --border-strong: #38383D;
+    --text-primary: #F2F2F3; --text-secondary: #A6A6AC; --text-muted: #6B6B70;
+    --accent: #3DB98A; --accent-hover: #4FCB9C; --accent-tint: rgba(61, 185, 138, 0.13);
+    --danger: #DB6B64;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-font-smoothing: antialiased; }
+  body { background: var(--bg); color: var(--text-primary); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; border: none; background: none; cursor: pointer; color: inherit; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .topbar { height: 52px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: var(--surface-elevated); position: sticky; top: 0; z-index: 10; }
+  .topbar h1 { font-size: 14.5px; font-weight: 600; }
+  .icon-btn { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--text-secondary); }
+  .icon-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+  .icon-btn svg { width: 16px; height: 16px; }
+
+  .content { max-width: 760px; margin: 0 auto; padding: 32px 24px 72px; }
+  .page-head { margin-bottom: 22px; }
+  .page-head h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+  .page-head p { margin-top: 4px; color: var(--text-secondary); font-size: 13.5px; }
+  .api-banner { border: 1px solid var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; margin-bottom: 20px; }
+
+  .filter-row { display: flex; gap: 6px; margin-bottom: 18px; }
+  .filter-chip { font-size: 12.5px; font-weight: 500; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--text-secondary); background: var(--surface); }
+  .filter-chip:hover { background: var(--surface-hover); }
+  .filter-chip.active { background: var(--accent-tint); border-color: var(--accent); color: var(--accent); }
+  .filter-chip .cnt { font-family: var(--font-mono); font-size: 11px; opacity: 0.75; margin-left: 3px; }
+
+  .bookmark-list { display: flex; flex-direction: column; gap: 8px; }
+  .bookmark-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); transition: border-color 0.15s ease; }
+  .bookmark-row:hover { border-color: var(--border-strong); }
+  .b-icon { width: 32px; height: 32px; border-radius: 7px; background: var(--surface-hover); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .b-icon svg { width: 15px; height: 15px; stroke: var(--text-secondary); }
+  .b-text { flex: 1; min-width: 0; }
+  .b-title { font-size: 13.5px; font-weight: 600; }
+  .b-sub { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 1px; }
+  .b-type-tag { font-size: 10.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; flex-shrink: 0; }
+  .b-remove { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); flex-shrink: 0; }
+  .b-remove:hover { background: var(--surface-hover); color: var(--text-primary); }
+  .b-remove svg { width: 15px; height: 15px; }
+  .bookmark-row.removing { opacity: 0; transform: translateX(6px); transition: opacity 0.2s ease, transform 0.2s ease; }
+  .empty { border: 1px dashed var(--border-strong); border-radius: 9px; padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
+  .empty svg { width: 22px; height: 22px; margin-bottom: 8px; stroke: var(--text-muted); }
+  .empty a { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Bookmarks</h1>
+  <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+</div>
+
+<div class="content">
+  <div class="page-head"><h2>Bookmarks</h2><p>Concepts, problems, and projects you've saved to come back to.</p></div>
+  <div class="api-banner" id="api-banner" style="display:none;">Couldn't reach the Codrive API, or you're not signed in. <a href="codrive-auth.html" style="color: inherit; text-decoration: underline;">Sign in</a> and make sure the backend is running.</div>
+  <div class="filter-row" id="filter-row"></div>
+  <div class="bookmark-list" id="bookmark-list"></div>
+</div>
+
+<script src="config.js"></script>
+<script>
+  const API_BASE = window.CODRIVE_CONFIG.apiBase;
+  const Api = (() => {
+    let accessToken = null, currentUser = null;
+    async function request(path, options = {}) {
+      const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+      if (accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
+      const res = await fetch(API_BASE + path, { ...options, headers, credentials: 'include' });
+      if (res.status === 204) return null;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+    async function getSession() {
+      if (currentUser) return currentUser;
+      const data = await request('/auth/refresh', { method: 'POST' });
+      accessToken = data.accessToken; currentUser = data.user;
+      return currentUser;
+    }
+    async function getBookmarks() { return (await request('/bookmarks')).bookmarks; }
+    async function removeBookmark(id) { return request('/bookmarks/' + id, { method: 'DELETE' }); }
+    return { getSession, getBookmarks, removeBookmark };
+  })();
+
+  const root = document.documentElement;
+  const toggle = document.getElementById('theme-toggle');
+  const icon = document.getElementById('theme-icon');
+  const sunPath = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+  const moonPath = '<path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>';
+  function applyTheme(t) { root.setAttribute('data-theme', t); icon.innerHTML = t === 'dark' ? moonPath : sunPath; }
+  { const saved = localStorage.getItem('codrive-theme'); applyTheme(saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')); }
+  toggle.addEventListener('click', () => { const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; applyTheme(next); localStorage.setItem('codrive-theme', next); });
+
+  const icons = {
+    concept: '<path d="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>',
+    problem: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+    project: '<path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>'
+  };
+
+  let activeFilter = 'all';
+  const filterRow = document.getElementById('filter-row');
+  const listEl = document.getElementById('bookmark-list');
+
+  async function render() {
+    let bookmarks = [];
+    try {
+      const session = await Api.getSession();
+      if (!session) throw new Error('not signed in');
+      bookmarks = await Api.getBookmarks();
+      document.getElementById('api-banner').style.display = 'none';
+    } catch (e) {
+      document.getElementById('api-banner').style.display = 'block';
+    }
+
+    const counts = { all: bookmarks.length, concept: 0, problem: 0, project: 0 };
+    bookmarks.forEach(b => { if (counts[b.targetType] !== undefined) counts[b.targetType]++; });
+    const labels = { all: 'All', concept: 'Concepts', problem: 'Problems', project: 'Projects' };
+    filterRow.innerHTML = Object.entries(labels).map(([key, label]) => `
+      <button class="filter-chip${key === activeFilter ? ' active' : ''}" data-filter="${key}">${label}<span class="cnt">${counts[key]}</span></button>
+    `).join('');
+    filterRow.querySelectorAll('.filter-chip').forEach(btn => { btn.addEventListener('click', () => { activeFilter = btn.dataset.filter; render(); }); });
+
+    const items = activeFilter === 'all' ? bookmarks : bookmarks.filter(b => b.targetType === activeFilter);
+    if (items.length === 0) {
+      listEl.innerHTML = `<div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+        <div>${bookmarks.length === 0 ? "You haven't bookmarked anything yet. Save a concept from the practice page to see it here." : 'No bookmarks in this category.'}</div>
+      </div>`;
+      return;
+    }
+    listEl.innerHTML = items.map(b => `
+      <div class="bookmark-row" data-id="${b._id}">
+        <span class="b-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[b.targetType] || icons.concept}</svg></span>
+        <span class="b-text"><div class="b-title">${b.title}</div><div class="b-sub">${b.sub || ''}</div></span>
+        <span class="b-type-tag">${b.targetType}</span>
+        <button class="b-remove" aria-label="Remove bookmark" data-id="${b._id}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" fill="currentColor" fill-opacity="0.15"/></svg>
+        </button>
+      </div>
+    `).join('');
+    listEl.querySelectorAll('.b-remove').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const row = listEl.querySelector(`.bookmark-row[data-id="${id}"]`);
+        row.classList.add('removing');
+        setTimeout(async () => { try { await Api.removeBookmark(id); } catch (e) {} render(); }, 180);
+      });
+    });
+  }
+
+  render();
+</script>
+
+</body>
+</html>

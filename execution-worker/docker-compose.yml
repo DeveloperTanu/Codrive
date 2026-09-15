@@ -1,0 +1,27 @@
+# Convenience compose file for running the worker + its queue locally.
+# The sandbox images are built once ahead of time (see README) — the worker
+# creates fresh single-use containers from them per job, it doesn't run them
+# as long-lived compose services.
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  worker:
+    build: .
+    depends_on:
+      - redis
+    environment:
+      - EXECUTION_QUEUE_URL=redis://redis:6379
+      - EXECUTION_QUEUE_NAME=codrive:execution-jobs
+      - MAX_CONCURRENT_JOBS=4
+    # The worker needs access to the host's Docker daemon to create sandbox
+    # containers — mounting the socket like this is the common pattern, but
+    # it does mean the worker container has meaningful power over the host's
+    # Docker. Weigh that against running the worker on bare metal/a VM with
+    # Docker installed directly instead, especially in production.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
