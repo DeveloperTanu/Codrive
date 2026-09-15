@@ -27,7 +27,7 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
 
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions);
   res.status(201).json({
-    user: { id: user._id, email: user.email, name: user.name },
+    user: { id: user._id, email: user.email, name: user.name, avatarData: user.avatarData },
     accessToken,
   });
 });
@@ -42,7 +42,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 
   res.cookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions);
   res.json({
-    user: { id: user._id, email: user.email, name: user.name },
+    user: { id: user._id, email: user.email, name: user.name, avatarData: user.avatarData },
     accessToken,
   });
 });
@@ -83,25 +83,31 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
   if (!user) throw new ApiError(401, "Account no longer exists.");
 
   const accessToken = authService.signAccessToken(user._id);
-  res.json({ accessToken, user: { id: user._id, email: user.email, name: user.name } });
+  res.json({ accessToken, user: { id: user._id, email: user.email, name: user.name, avatarData: user.avatarData } });
 });
 
 export const me = asyncHandler(async (req: AuthedRequest, res: Response) => {
   const user = await User.findById(req.userId);
   if (!user) throw new ApiError(404, "User not found.");
-  res.json({ user: { id: user._id, email: user.email, name: user.name } });
+  res.json({ user: { id: user._id, email: user.email, name: user.name, avatarData: user.avatarData } });
 });
 
 export const updateProfile = asyncHandler(async (req: AuthedRequest, res: Response) => {
-  const { name, email } = req.body;
+  const { name, email, avatarData } = req.body;
   const user = await User.findById(req.userId);
   if (!user) throw new ApiError(404, "User not found.");
 
   if (name) user.name = name;
   if (email) user.email = email.toLowerCase();
+  if (avatarData !== undefined) {
+    if (avatarData !== null && (typeof avatarData !== "string" || !avatarData.startsWith("data:image/") || avatarData.length > 700_000)) {
+      throw new ApiError(400, "Profile image must be a resized image under 500 KB.");
+    }
+    user.avatarData = avatarData || undefined;
+  }
   await user.save();
 
-  res.json({ user: { id: user._id, email: user.email, name: user.name } });
+  res.json({ user: { id: user._id, email: user.email, name: user.name, avatarData: user.avatarData } });
 });
 
 export const deleteAccount = asyncHandler(async (req: AuthedRequest, res: Response) => {

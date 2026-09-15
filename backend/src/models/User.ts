@@ -5,6 +5,7 @@ export interface IUser extends Document {
   email: string;
   passwordHash: string;
   name: string;
+  avatarData?: string;
   createdAt: Date;
   lastActiveAt: Date;
   preferences: {
@@ -18,6 +19,7 @@ const userSchema = new Schema<IUser>({
   // Never store, log, or return this field as plaintext at any point — see auth.service.ts
   passwordHash: { type: String, required: true, select: false },
   name: { type: String, required: true, trim: true },
+  avatarData: { type: String, default: null },
   createdAt: { type: Date, default: Date.now },
   lastActiveAt: { type: Date, default: Date.now },
   preferences: {

@@ -26,7 +26,8 @@ export async function seed(reset = true) {
     ]);
   }
 
-  const javascript = await Language.create({
+  let javascript = await Language.findOne({ slug: "javascript" });
+  if (!javascript) javascript = await Language.create({
     slug: "javascript",
     name: "JavaScript",
     categories: [
@@ -35,7 +36,8 @@ export async function seed(reset = true) {
     ],
   });
 
-  const python = await Language.create({
+  let python = await Language.findOne({ slug: "python" });
+  if (!python) python = await Language.create({
     slug: "python",
     name: "Python",
     categories: [
@@ -136,13 +138,69 @@ export async function seed(reset = true) {
     },
   });
 
+  // A broader starter catalog makes a fresh deployment useful immediately.
+  // Frameworks are exposed as study tracks too, rather than hidden behind a
+  // language filter the static frontend cannot navigate yet.
+  const catalog = [
+    ["javascript", "JavaScript", "async", "Promises & Async", ["Closures", "Async Await", "Array Methods"]],
+    ["python", "Python", "fundamentals", "Fundamentals", ["Functions", "List Comprehensions", "Generators"]],
+    ["typescript", "TypeScript", "types", "Types & Interfaces", ["Type Annotations", "Interfaces", "Generics"]],
+    ["java", "Java", "fundamentals", "Fundamentals", ["Classes & Objects", "Collections", "Streams"]],
+    ["c", "C", "fundamentals", "Fundamentals", ["Pointers", "Memory Management", "Structs"]],
+    ["cpp", "C++", "fundamentals", "Fundamentals", ["References", "STL Containers", "Smart Pointers"]],
+    ["go", "Go", "fundamentals", "Fundamentals", ["Goroutines", "Channels", "Interfaces"]],
+    ["rust", "Rust", "fundamentals", "Fundamentals", ["Ownership", "Borrowing", "Error Handling"]],
+    ["react", "React", "components", "Components & Hooks", ["Components", "useState", "useEffect"]],
+    ["express", "Express", "server", "Server Basics", ["Routing", "Middleware", "Error Handling"]],
+    ["numpy", "NumPy", "arrays", "Arrays", ["ndarray", "Broadcasting", "Vectorization"]],
+    ["pandas", "Pandas", "dataframes", "DataFrames", ["Series", "DataFrames", "Group By"]],
+    ["scikit-learn", "scikit-learn", "machine-learning", "Machine Learning", ["Train/Test Split", "Linear Regression", "Model Evaluation"]],
+    ["django", "Django", "web", "Web Development", ["Models", "Views", "ORM"]],
+    ["sql", "SQL", "queries", "Queries & Data", ["SELECT Queries", "JOINs", "Indexes"]],
+  ] as const;
+
+  for (const [slug, name, categorySlug, categoryName, titles] of catalog) {
+    const language = await Language.findOneAndUpdate(
+      { slug },
+      { $setOnInsert: { slug, name, categories: [{ slug: categorySlug, name: categoryName, order: 1 }] } },
+      { upsert: true, new: true }
+    );
+    for (const [index, title] of titles.entries()) {
+      await Concept.findOneAndUpdate(
+        { languageId: language._id, slug: title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") },
+        {
+          $setOnInsert: {
+            slug: title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+            title,
+            languageId: language._id,
+            categorySlug,
+            difficulty: index === 0 ? "beginner" : index === 1 ? "intermediate" : "advanced",
+            estimatedMinutes: 5,
+            content: {
+              whatIsIt: `${title} is a core ${name} concept used in real projects.`,
+              syntax: `// Explore ${title} in ${name}`,
+              mentalModel: `Learn ${title} by connecting it to the problem it solves.`,
+              commonMistakes: [{ title: "Skipping the basics", body: `Practice ${title} with small examples before using it in production.` }],
+              remember: `${title}: understand the purpose, then practise applying it.`,
+              quickCheck: { question: `Which track contains ${title}?`, options: [name, "JavaScript", "Python"], correctIndex: 0 },
+            },
+          },
+        },
+        { upsert: true }
+      );
+    }
+  }
+
   console.log("[seed] done.");
 }
 
 export async function ensureSeedData() {
-  if (await Language.exists({})) return false;
-  console.log("[seed] no catalog found; adding starter content...");
-  await seed(false);
+  const count = await Language.countDocuments();
+  if (count >= 15) return false;
+  console.log("[seed] catalog is incomplete; rebuilding starter tracks...");
+  // Only catalog collections are reset. User accounts, bookmarks, projects,
+  // submissions, and progress records are deliberately left untouched.
+  await seed(true);
   return true;
 }
 

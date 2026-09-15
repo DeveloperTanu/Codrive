@@ -201,6 +201,7 @@
     <div class="profile-card">
       <div class="profile-head-row">
         <span class="avatar-lg" id="profile-avatar">?</span>
+        <img id="profile-avatar-image" alt="Profile photo" style="display:none; width:52px; height:52px; border-radius:50%; object-fit:cover;">
         <div>
           <div class="p-name" id="profile-display-name">—</div>
           <div class="p-email" id="profile-display-email">—</div>
@@ -208,6 +209,7 @@
       </div>
       <h2>Account details</h2>
       <form id="profile-form">
+        <div class="field"><label for="profile-avatar-upload">Profile photo</label><input type="file" id="profile-avatar-upload" accept="image/png,image/jpeg,image/webp"></div>
         <div class="field"><label>Name</label><input type="text" id="profile-name"></div>
         <div class="field" style="margin-bottom: 12px;"><label>Email</label><input type="email" id="profile-email"></div>
         <div class="profile-actions">
@@ -355,8 +357,34 @@
     document.getElementById('profile-display-email').textContent = session.email;
     document.getElementById('profile-name').value = session.name;
     document.getElementById('profile-email').value = session.email;
+    setAvatarPreview(session.avatarData);
     showView('profile');
   }
+
+  let pendingAvatarData;
+  function setAvatarPreview(avatarData) {
+    const avatar = document.getElementById('profile-avatar');
+    const image = document.getElementById('profile-avatar-image');
+    if (avatarData) { image.src = avatarData; image.style.display = 'block'; avatar.style.display = 'none'; }
+    else { image.removeAttribute('src'); image.style.display = 'none'; avatar.style.display = 'flex'; }
+  }
+  document.getElementById('profile-avatar-upload').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const size = 256, scale = Math.min(size / image.width, size / image.height, 1);
+        const canvas = document.createElement('canvas'); canvas.width = Math.round(image.width * scale); canvas.height = Math.round(image.height * scale);
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        pendingAvatarData = canvas.toDataURL('image/jpeg', 0.85);
+        setAvatarPreview(pendingAvatarData);
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -425,7 +453,8 @@
     const name = document.getElementById('profile-name').value.trim();
     const email = document.getElementById('profile-email').value.trim();
     try {
-      const updated = await CodriveData.updateProfile({ name, email });
+      const updated = await CodriveData.updateProfile({ name, email, ...(pendingAvatarData ? { avatarData: pendingAvatarData } : {}) });
+      pendingAvatarData = undefined;
       document.getElementById('profile-avatar').textContent = CodriveData.initials(updated.name);
       document.getElementById('profile-display-name').textContent = updated.name;
       document.getElementById('profile-display-email').textContent = updated.email;
