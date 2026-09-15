@@ -4,5 +4,7 @@
 // Local development: http://localhost:4000/api
 // Production example: https://api.your-domain.com/api
 window.CODRIVE_CONFIG = {
-  apiBase: "http://localhost:4000/api",
+  apiBase: ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ? "http://localhost:4000/api"
+    : "/api",
 };
