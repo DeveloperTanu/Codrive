@@ -135,7 +135,7 @@
       <span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6L3 12l5 6M16 6l5 6-5 6"/></svg></span>
       <span class="name">Codrive</span>
     </div>
-    <button class="sb-search">
+    <button class="sb-search" id="search-btn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
       Search<kbd>⌘K</kbd>
     </button>
@@ -243,6 +243,9 @@
   function applyTheme(t) { root.setAttribute('data-theme', t); icon.innerHTML = t === 'dark' ? moonPath : sunPath; }
   { const saved = localStorage.getItem('codrive-theme'); applyTheme(saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')); }
   toggle.addEventListener('click', () => { const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; applyTheme(next); localStorage.setItem('codrive-theme', next); });
+  document.getElementById('search-btn').addEventListener('click', () => {
+    window.location.href = 'codrive-search.html';
+  });
 
   function timeAgo(iso) {
     if (!iso) return '';
