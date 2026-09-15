@@ -12,6 +12,14 @@ export function createApp() {
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
 
+  app.get("/", (_req, res) => {
+    res.json({
+      service: "Codrive API",
+      status: "ok",
+      health: "/health",
+      api: "/api",
+    });
+  });
   app.get("/health", (_req, res) => res.json({ status: "ok" }));
   app.use("/api", routes);
 
