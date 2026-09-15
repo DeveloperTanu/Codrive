@@ -11,18 +11,20 @@ import { Hint } from "../models/Hint";
 import { Solution } from "../models/Solution";
 import mongoose from "mongoose";
 
-async function seed() {
+export async function seed(reset = true) {
   await connectDB();
 
-  console.log("[seed] clearing existing content collections...");
-  await Promise.all([
-    Language.deleteMany({}),
-    Framework.deleteMany({}),
-    Concept.deleteMany({}),
-    Problem.deleteMany({}),
-    Hint.deleteMany({}),
-    Solution.deleteMany({}),
-  ]);
+  if (reset) {
+    console.log("[seed] clearing existing content collections...");
+    await Promise.all([
+      Language.deleteMany({}),
+      Framework.deleteMany({}),
+      Concept.deleteMany({}),
+      Problem.deleteMany({}),
+      Hint.deleteMany({}),
+      Solution.deleteMany({}),
+    ]);
+  }
 
   const javascript = await Language.create({
     slug: "javascript",
@@ -135,10 +137,18 @@ async function seed() {
   });
 
   console.log("[seed] done.");
-  await mongoose.disconnect();
 }
 
-seed().catch((err) => {
-  console.error("[seed] failed:", err);
-  process.exit(1);
-});
+export async function ensureSeedData() {
+  if (await Language.exists({})) return false;
+  console.log("[seed] no catalog found; adding starter content...");
+  await seed(false);
+  return true;
+}
+
+if (require.main === module) {
+  seed().then(() => mongoose.disconnect()).catch((err) => {
+    console.error("[seed] failed:", err);
+    process.exit(1);
+  });
+}

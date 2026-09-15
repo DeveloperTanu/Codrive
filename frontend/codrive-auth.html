@@ -370,7 +370,8 @@
     setError('login-password-field', !pwOk);
     if (!emailOk || !pwOk) return;
     try {
-      enterProfile(await CodriveData.signIn(email, pw));
+      await CodriveData.signIn(email, pw);
+      window.location.href = 'codrive-dashboard.html';
     } catch (err) {
       errEl.textContent = err.message;
       errEl.style.display = 'block';
@@ -392,7 +393,8 @@
     setError('signup-password-field', !pwOk);
     if (!nameOk || !emailOk || !pwOk) return;
     try {
-      enterProfile(await CodriveData.signUp(name, email, pw));
+      await CodriveData.signUp(name, email, pw);
+      window.location.href = 'codrive-dashboard.html';
     } catch (err) {
       errEl.textContent = err.message;
       errEl.style.display = 'block';
