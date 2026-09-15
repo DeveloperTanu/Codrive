@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codrive — Debugger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F7F8; --surface: #FFFFFF; --surface-elevated: #FCFCFD; --surface-hover: #F0F0F1;
+    --border: #E4E4E7; --border-strong: #D4D4D8;
+    --text-primary: #18181B; --text-secondary: #52525B; --text-muted: #A1A1AA;
+    --accent: #2F8F6E; --accent-hover: #267A5D; --accent-tint: rgba(47, 143, 110, 0.09);
+    --danger: #C0433C; --danger-tint: rgba(192, 67, 60, 0.09);
+    --warning: #B5790C; --warning-tint: rgba(181, 121, 12, 0.14);
+    --success: #2F8F6E;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  html[data-theme="dark"] {
+    --bg: #121214; --surface: #1B1B1E; --surface-elevated: #19191C; --surface-hover: #26262A;
+    --border: #2C2C30; --border-strong: #38383D;
+    --text-primary: #F2F2F3; --text-secondary: #A6A6AC; --text-muted: #6B6B70;
+    --accent: #3DB98A; --accent-hover: #4FCB9C; --accent-tint: rgba(61, 185, 138, 0.13);
+    --danger: #DB6B64; --danger-tint: rgba(219, 107, 100, 0.12);
+    --warning: #D8A23F; --warning-tint: rgba(216, 162, 63, 0.16);
+    --success: #3DB98A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-font-smoothing: antialiased; }
+  body { background: var(--bg); color: var(--text-primary); font-family: var(--font-sans); font-size: 13.5px; line-height: 1.5; height: 100vh; overflow: hidden; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  button { font-family: inherit; border: none; background: none; cursor: pointer; color: inherit; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .shell { display: flex; flex-direction: column; height: 100vh; }
+
+  .topbar { height: 44px; flex-shrink: 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 14px; background: var(--surface-elevated); }
+  .crumbs { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+  .crumbs .cur { color: var(--text-primary); font-weight: 600; }
+  .crumbs svg { width: 10px; height: 10px; }
+  .icon-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--text-secondary); }
+  .icon-btn:hover { background: var(--surface-hover); color: var(--text-primary); }
+  .icon-btn svg { width: 15px; height: 15px; }
+
+  /* ---------- STEP CONTROLS ---------- */
+  .controls-bar { display: flex; align-items: center; gap: 4px; height: 42px; flex-shrink: 0; padding: 0 12px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .ctrl-btn { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--text-primary); border: 1px solid var(--border-strong); background: var(--surface); }
+  .ctrl-btn:hover:not(:disabled) { background: var(--surface-hover); }
+  .ctrl-btn svg { width: 13px; height: 13px; }
+  .ctrl-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ctrl-btn.primary:hover:not(:disabled) { background: var(--accent-hover); }
+  .ctrl-sep { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
+  .exec-status { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); }
+  .exec-status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warning); }
+  .exec-status .dot.done { background: var(--success); }
+
+  /* ---------- LAYOUT ---------- */
+  .workspace { flex: 1; display: flex; min-height: 0; }
+
+  .code-pane { flex: 1; display: flex; min-width: 0; background: var(--surface); font-family: var(--font-mono); font-size: 13px; line-height: 1.85; overflow-y: auto; }
+  .gutter { padding: 12px 0; text-align: right; color: var(--text-muted); user-select: none; border-right: 1px solid var(--border); background: var(--surface-elevated); width: 46px; flex-shrink: 0; }
+  .gutter .g-line { padding: 0 10px; position: relative; }
+  .gutter .g-line.bp::before { content: ""; position: absolute; left: 4px; top: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); }
+  .code-lines { flex: 1; padding: 12px 0; }
+  .code-line { padding: 0 16px; white-space: pre; color: var(--text-secondary); }
+  .code-line.current { background: var(--accent-tint); position: relative; }
+  .code-line.current::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .tok-kw { color: var(--accent); }
+  .tok-str { color: #A16207; } html[data-theme="dark"] .tok-str { color: #E3B341; }
+  .tok-com { color: var(--text-muted); }
+
+  .right-pane { width: 280px; flex-shrink: 0; border-left: 1px solid var(--border); background: var(--surface-elevated); display: flex; flex-direction: column; overflow-y: auto; }
+  .panel-block { border-bottom: 1px solid var(--border); }
+  .panel-head { padding: 10px 14px 8px; font-size: 11px; font-weight: 600; color: var(--text-muted); }
+
+  .var-table { padding: 0 14px 12px; }
+  .var-row { display: flex; align-items: baseline; justify-content: space-between; padding: 4px 0; font-family: var(--font-mono); font-size: 12.5px; }
+  .var-row .v-name { color: var(--text-secondary); }
+  .var-row .v-val { color: var(--text-primary); font-weight: 500; }
+  .var-row .v-val.changed { color: var(--accent); }
+  .var-row .v-val.arr { color: var(--text-secondary); }
+
+  .stack-list { padding: 0 14px 12px; display: flex; flex-direction: column; gap: 2px; }
+  .stack-row { padding: 6px 8px; border-radius: 6px; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); }
+  .stack-row.active { background: var(--accent-tint); color: var(--accent); font-weight: 600; }
+
+  .output-block { flex: 1; }
+  .output-body { padding: 8px 14px 14px; font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); }
+  .output-body .out-line { margin-bottom: 3px; }
+  .output-body .err { color: var(--danger); }
+
+  @media (max-width: 900px) {
+    .right-pane { width: 220px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="crumbs">
+      <span>Practice</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+      <span class="cur">Debugger — sumUntilOverLimit</span>
+    </div>
+    <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme">
+      <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </div>
+
+  <div class="controls-bar">
+    <button class="ctrl-btn primary" id="continue-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Continue
+    </button>
+    <div class="ctrl-sep"></div>
+    <button class="ctrl-btn" id="step-over-btn" title="Step over">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="19" r="2"/><path d="M4 4c0 6 4 8 8 8s8-2 8-8"/></svg>
+      Step over
+    </button>
+    <button class="ctrl-btn" id="step-into-btn" title="Step into">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="19" r="2"/><path d="M12 5v9M8 10l4 4 4-4"/></svg>
+      Step into
+    </button>
+    <button class="ctrl-btn" id="step-out-btn" title="Step out">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="19" r="2"/><path d="M12 14V5M8 9l4-4 4 4"/></svg>
+      Step out
+    </button>
+    <div class="ctrl-sep"></div>
+    <button class="ctrl-btn" id="restart-btn" title="Restart">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+      Restart
+    </button>
+    <div class="exec-status">
+      <span class="dot" id="status-dot"></span>
+      <span id="status-text">Paused on line 4</span>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <div class="code-pane">
+      <div class="gutter" id="gutter"></div>
+      <div class="code-lines" id="code-lines"></div>
+    </div>
+
+    <div class="right-pane">
+      <div class="panel-block">
+        <div class="panel-head">Variables</div>
+        <div class="var-table" id="var-table"></div>
+      </div>
+      <div class="panel-block">
+        <div class="panel-head">Call stack</div>
+        <div class="stack-list" id="stack-list"></div>
+      </div>
+      <div class="panel-block output-block">
+        <div class="panel-head">Output</div>
+        <div class="output-body" id="output-body"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // theme
+  const root = document.documentElement;
+  const toggle = document.getElementById('theme-toggle');
+  const icon = document.getElementById('theme-icon');
+  const sunPath = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+  const moonPath = '<path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>';
+  function applyTheme(t) { root.setAttribute('data-theme', t); icon.innerHTML = t === 'dark' ? moonPath : sunPath; }
+  {
+    const saved = localStorage.getItem('codrive-theme');
+    applyTheme(saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+  }
+  toggle.addEventListener('click', () => {
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    localStorage.setItem('codrive-theme', next);
+  });
+
+  // ---- source (a buggy off-by-one loop — realistic debugging target) ----
+  const source = [
+    'function sumUntilOverLimit(items, limit) {',
+    '  let count = 0;',
+    '  let total = 0;',
+    '  for (let i = 0; i <= items.length; i++) {',
+    '    total = total + items[i];',
+    '    count = count + 1;',
+    '    if (total > limit) break;',
+    '  }',
+    '  return { total, count };',
+    '}'
+  ];
+  const breakpoints = new Set([4]); // line 5 (0-indexed 4) has a breakpoint
+
+  const codeLinesEl = document.getElementById('code-lines');
+  const gutterEl = document.getElementById('gutter');
+  function renderSource(currentLine) {
+    gutterEl.innerHTML = source.map((_, i) =>
+      `<div class="g-line${breakpoints.has(i) ? ' bp' : ''}">${i + 1}</div>`
+    ).join('');
+    codeLinesEl.innerHTML = source.map((line, i) => {
+      const highlighted = line
+        .replace(/\b(function|let|const|for|if|break|return)\b/g, '<span class="tok-kw">$1</span>');
+      return `<div class="code-line${i === currentLine ? ' current' : ''}">${highlighted}</div>`;
+    }).join('');
+  }
+
+  // ---- simulated execution trace ----
+  // Each step: { line, vars: {name: value}, changedVars: [names], output: [lines to append] }
+  const trace = [
+    { line: 3, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 0, count: 0, total: 0 } },
+    { line: 4, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 0, count: 0, total: 0 }, changed: [] },
+    { line: 4, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 0, count: 0, total: 4 }, changed: ['total'] },
+    { line: 5, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 0, count: 1, total: 4 }, changed: ['count'] },
+    { line: 3, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 1, count: 1, total: 4 }, changed: ['i'] },
+    { line: 4, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 1, count: 1, total: 13 }, changed: ['total'] },
+    { line: 5, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 1, count: 2, total: 13 }, changed: ['count'] },
+    { line: 3, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 2, count: 2, total: 13 }, changed: ['i'] },
+    { line: 4, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 2, count: 2, total: 15 }, changed: ['total'] },
+    { line: 5, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 2, count: 3, total: 15 }, changed: ['count'] },
+    { line: 3, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 3, count: 3, total: 15 }, changed: ['i'] },
+    { line: 4, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 3, count: 3, total: 22 }, changed: ['total'] },
+    { line: 5, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 3, count: 4, total: 22 }, changed: ['count'] },
+    { line: 3, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 4, count: 4, total: 22 }, changed: ['i'] },
+    { line: 4, vars: { items: '[4, 9, 2, 7]', limit: 15, i: 4, count: 4, total: 'NaN' }, changed: ['total'],
+      output: ['<span class="err">TypeError: Cannot read index 4 of array with length 4</span>'] }
+  ];
+
+  let step = 0;
+  const varTable = document.getElementById('var-table');
+  const stackList = document.getElementById('stack-list');
+  const outputBody = document.getElementById('output-body');
+  const statusText = document.getElementById('status-text');
+  const statusDot = document.getElementById('status-dot');
+
+  function render() {
+    const frame = trace[step];
+    renderSource(frame.line);
+    varTable.innerHTML = Object.entries(frame.vars).map(([name, val]) => {
+      const isChanged = frame.changed && frame.changed.includes(name);
+      return `<div class="var-row"><span class="v-name">${name}</span><span class="v-val${isChanged ? ' changed' : ''}">${val}</span></div>`;
+    }).join('');
+    stackList.innerHTML = `
+      <div class="stack-row active">sumUntilOverLimit()  line ${frame.line + 1}</div>
+      <div class="stack-row">(anonymous) — module scope</div>
+    `;
+    const isLast = step === trace.length - 1;
+    statusText.textContent = isLast ? 'Execution stopped — unhandled error' : `Paused on line ${frame.line + 1}`;
+    statusDot.classList.toggle('done', false);
+    statusDot.style.background = isLast ? 'var(--danger)' : 'var(--warning)';
+
+    if (frame.output) {
+      frame.output.forEach(line => {
+        const div = document.createElement('div');
+        div.className = 'out-line';
+        div.innerHTML = line;
+        outputBody.appendChild(div);
+      });
+    }
+
+    document.getElementById('continue-btn').disabled = isLast;
+    document.getElementById('step-over-btn').disabled = isLast;
+    document.getElementById('step-into-btn').disabled = isLast;
+    document.getElementById('step-out-btn').disabled = isLast;
+  }
+
+  function stepForward() {
+    if (step < trace.length - 1) { step++; render(); }
+  }
+  function runToEnd() {
+    step = trace.length - 1;
+    render();
+  }
+  function restart() {
+    step = 0;
+    outputBody.innerHTML = '';
+    render();
+  }
+
+  document.getElementById('step-over-btn').addEventListener('click', stepForward);
+  document.getElementById('step-into-btn').addEventListener('click', stepForward);
+  document.getElementById('step-out-btn').addEventListener('click', stepForward);
+  document.getElementById('continue-btn').addEventListener('click', runToEnd);
+  document.getElementById('restart-btn').addEventListener('click', restart);
+
+  render();
+</script>
+
+</body>
+</html>
