@@ -25,7 +25,7 @@ export const listByLanguageAndCategory = asyncHandler(async (req: AuthedRequest,
 });
 
 export const getById = asyncHandler(async (req: AuthedRequest, res: Response) => {
-  const concept = await Concept.findById(req.params.id);
+  const concept = await Concept.findById(req.params.id).populate("languageId", "name");
   if (!concept) throw new ApiError(404, "Concept not found.");
   res.json({ concept });
 });

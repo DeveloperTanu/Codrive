@@ -119,6 +119,9 @@
   .nav-links a:hover { color: var(--text-primary); }
 
   .nav-right { display: flex; align-items: center; gap: 8px; }
+  .nav-user { display: none; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+  .nav-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; background: var(--surface-hover); display: none; }
+  .nav-initials { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-tint); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 11px; }
 
   .icon-btn {
     width: 32px; height: 32px;
@@ -462,6 +465,7 @@
       </button>
       <a class="btn btn-ghost" href="codrive-auth.html">Sign in</a>
       <a class="btn btn-primary" href="codrive-auth.html">Get Started</a>
+      <a class="nav-user" id="nav-user" href="codrive-dashboard.html"><span class="nav-initials" id="nav-initials"></span><img class="nav-avatar" id="nav-avatar" alt="Profile photo"><span id="nav-name"></span></a>
     </div>
   </div>
 </nav>
@@ -587,6 +591,7 @@
   </div>
 </footer>
 
+<script src="config.js"></script>
 <script>
   const root = document.documentElement;
   const toggle = document.getElementById('theme-toggle');
@@ -613,6 +618,20 @@
   document.getElementById('search-btn').addEventListener('click', () => {
     window.location.href = 'codrive-search.html';
   });
+  (async () => {
+    try {
+      const res = await fetch(window.CODRIVE_CONFIG.apiBase + '/auth/refresh', { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok || !data.user) return;
+      document.querySelectorAll('.nav-right > .btn').forEach(el => el.style.display = 'none');
+      const user = data.user;
+      const initials = user.name.trim().split(/\s+/).map(word => word[0]).slice(0, 2).join('').toUpperCase();
+      document.getElementById('nav-initials').textContent = initials;
+      document.getElementById('nav-name').textContent = user.name;
+      if (user.avatarData) { const image = document.getElementById('nav-avatar'); image.src = user.avatarData; image.style.display = 'block'; document.getElementById('nav-initials').style.display = 'none'; }
+      document.getElementById('nav-user').style.display = 'flex';
+    } catch (_) {}
+  })();
 </script>
 
 </body>

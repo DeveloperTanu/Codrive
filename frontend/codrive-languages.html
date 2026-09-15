@@ -61,7 +61,7 @@
   .category-head h3 { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
   .category-head .cat-progress { font-size: 11.5px; color: var(--text-muted); font-family: var(--font-mono); }
   .concept-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .concept-tile { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: var(--surface); transition: border-color 0.15s ease, transform 0.1s ease; }
+  .concept-tile { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: var(--surface); color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; transition: border-color 0.15s ease, transform 0.1s ease; }
   .concept-tile:hover { border-color: var(--border-strong); transform: translateY(-1px); }
   .concept-tile .c-name { font-size: 13px; font-weight: 500; }
   .concept-tile .c-status { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
@@ -163,11 +163,16 @@
         return `<div class="category-block">
           <div class="category-head"><h3>${cat.name}</h3><span class="cat-progress">${reviewedCount}/${concepts.length} reviewed</span></div>
           <div class="concept-grid">${concepts.length === 0 ? '<div style="color: var(--text-muted); font-size: 13px;">No concepts seeded in this category yet.</div>' : concepts.map(c => `
-            <div class="concept-tile"><span class="c-name">${c.title}</span><span class="c-status ${statusFor(byConceptId[c._id])}"></span></div>
+            <button class="concept-tile" data-concept-id="${c._id}" type="button"><span class="c-name">${c.title}</span><span class="c-status ${statusFor(byConceptId[c._id])}"></span></button>
           `).join('')}</div>
         </div>`;
       }).join('')}
     `;
+    content.querySelectorAll('[data-concept-id]').forEach((tile) => {
+      tile.addEventListener('click', () => {
+        window.location.href = `codrive-practice.html?concept=${encodeURIComponent(tile.dataset.conceptId)}`;
+      });
+    });
   }
 
   async function init() {

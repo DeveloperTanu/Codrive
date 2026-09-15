@@ -247,6 +247,7 @@ result
       return currentUser;
     }
     async function getConceptsByCategory(lang, cat) { return (await request(`/concepts/${lang}/${cat}`)).concepts; }
+    async function getConcept(id) { return (await request(`/concepts/${id}`)).concept; }
     async function markReviewed(conceptId, result) { return request(`/concepts/${conceptId}/review`, { method: 'POST', body: JSON.stringify({ result }) }); }
     async function getBookmarks() { return (await request('/bookmarks')).bookmarks; }
     async function addBookmark(targetType, targetId, title, sub) { return request('/bookmarks', { method: 'POST', body: JSON.stringify({ targetType, targetId, title, sub }) }); }
@@ -255,7 +256,7 @@ result
     async function getHint(problemId, order) { return (await request(`/problems/${problemId}/hints/${order}`)).hint; }
     async function getSolution(problemId) { return (await request(`/problems/${problemId}/solution`)).solution; }
     async function submitProblem(problemId, code, language) { return request(`/problems/${problemId}/submit`, { method: 'POST', body: JSON.stringify({ code, language }) }); }
-    return { getSession, getConceptsByCategory, markReviewed, getBookmarks, addBookmark, removeBookmark, getProblemByConcept, getHint, getSolution, submitProblem };
+    return { getSession, getConceptsByCategory, getConcept, markReviewed, getBookmarks, addBookmark, removeBookmark, getProblemByConcept, getHint, getSolution, submitProblem };
   })();
 
   const root = document.documentElement;
@@ -272,6 +273,7 @@ result
   // bookmark/review/submit call below uses these real ids — nothing here is
   // a client-invented identifier.
   let conceptId = null;
+  let selectedConcept = null;
   let problemId = null;
   let bookmarkRecordId = null; // the Bookmark document's own _id, once one exists
 
@@ -281,11 +283,19 @@ result
       session = await Api.getSession();
       if (!session) throw new Error('not signed in');
 
+      const requestedId = new URLSearchParams(window.location.search).get('concept');
+      if (requestedId) {
+        selectedConcept = await Api.getConcept(requestedId);
+        conceptId = selectedConcept._id;
+      } else {
       const concepts = await Api.getConceptsByCategory('javascript', 'async');
       const promises = concepts.find(c => c.title === 'Promises');
       if (!promises) throw new Error('Seed data not found — run `npm run seed` in codrive-backend.');
       conceptId = promises._id;
+      selectedConcept = promises;
+      }
 
+      renderConcept(selectedConcept);
       try {
         const problem = await Api.getProblemByConcept(conceptId);
         problemId = problem._id;
@@ -302,6 +312,25 @@ result
     }
   }
   init();
+
+  function renderConcept(concept) {
+    const data = concept.content || {};
+    const sections = document.querySelectorAll('.c-section');
+    document.querySelector('.crumbs .cur').textContent = concept.title;
+    if (concept.languageId?.name) {
+      document.querySelector('.crumbs span:first-child').textContent = concept.languageId.name;
+      document.querySelector('.tag.lang').textContent = concept.languageId.name;
+    }
+    document.querySelector('.c-header h1').textContent = concept.title;
+    document.querySelector('.tag.diff').textContent = `${concept.estimatedMinutes || 5} min`;
+    sections[0].querySelector('p').textContent = data.whatIsIt || '';
+    sections[1].querySelector('pre').textContent = data.syntax || '';
+    sections[2].querySelector('p').textContent = data.mentalModel || '';
+    sections[4].querySelector('.remember-box').textContent = data.remember || '';
+    sections[5].querySelector('.q').textContent = data.quickCheck?.question || 'Review this concept, then mark it complete.';
+    sections[5].querySelector('.options').innerHTML = (data.quickCheck?.options || []).map((option, index) => `<button class="qopt" data-correct="${index === data.quickCheck.correctIndex}">${option}</button>`).join('');
+    bindQuickCheck();
+  }
 
   document.getElementById('bookmark-btn').addEventListener('click', async () => {
     if (!conceptId) return;
@@ -341,7 +370,7 @@ result
     } catch (e) { document.getElementById('api-banner').style.display = 'block'; }
   });
 
-  document.querySelectorAll('.qopt').forEach(btn => {
+  function bindQuickCheck() { document.querySelectorAll('.qopt').forEach(btn => {
     btn.addEventListener('click', async function () {
       const isCorrect = this.dataset.correct === 'true';
       document.querySelectorAll('.qopt').forEach(b => b.classList.remove('correct', 'wrong'));
@@ -349,7 +378,7 @@ result
       if (!isCorrect) document.querySelector('.qopt[data-correct="true"]').classList.add('correct');
       if (conceptId) { try { await Api.markReviewed(conceptId, isCorrect ? 'strong' : 'needs_revision'); } catch (e) {} }
     });
-  });
+  }); }
 
   const editor = document.getElementById('editor');
   const gutter = document.getElementById('gutter');
